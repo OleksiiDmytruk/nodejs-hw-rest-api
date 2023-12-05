@@ -1,48 +1,68 @@
 import { Schema, model } from "mongoose";
 import Joi from "joi";
 import { handleSaveError, preUpdate } from "./hooks.js";
-
-const nameRegExp =
-  /^[a-zA-Zа-щьюяґєіїА-ЩЬЮЯҐЄІЇ]+(([' \\-][a-zA-Zа-щьюяґєіїА-ЩЬЮЯҐЄІЇ ])?[a-zA-Zа-щьюяґєіїА-ЩЬЮЯҐЄІЇ]*)*$/;
-const emailRegExp =
-  /^([a-zA-Z0-9_.-])+@(([a-zA-Z0-9-])+.)+([a-zA-Z0-9]{2,4})+$/;
-const phoneRegExp = /^([+]?[s0-9]+)?(d{3}|[(]?[0-9]+[)])?([-]?[s]?[0-9])+$/;
+import { validationRegexp } from "../helpers/index.js";
 
 const contactShema = new Schema(
   {
     name: {
       type: String,
-      match: nameRegExp,
+      match: validationRegexp.nameRegExp,
       required: [true, "Set name for contact"],
     },
     email: {
       type: String,
       unique: true,
-      match: emailRegExp,
+      match: validationRegexp.emailRegExp,
     },
     phone: {
       type: String,
-      match: phoneRegExp,
+      match: validationRegexp.phoneRegExp,
     },
     favorite: {
       type: Boolean,
       default: false,
+    },
+    owner: {
+      type: Schema.Types.ObjectId,
+      ref: "user",
     },
   },
   { versionKey: false, timestamps: true }
 );
 
 export const contactAddSchema = Joi.object({
-  name: Joi.string().pattern(nameRegExp).required(),
-  email: Joi.string().email().pattern(emailRegExp).required(),
-  phone: Joi.string().pattern(phoneRegExp).required(),
+  name: Joi.string().pattern(validationRegexp.nameRegExp).required().messages({
+    "any.required": "missing required {#label} field",
+    "string.pattern.base": "Invalid {#label} format.",
+  }),
+  email: Joi.string()
+    .pattern(validationRegexp.emailRegExp)
+    .required()
+    .messages({
+      "any.required": "missing required {#label} field",
+      "string.pattern.base": "Invalid {#label} format.",
+    }),
+  phone: Joi.string()
+    .pattern(validationRegexp.phoneRegExp)
+    .required()
+    .messages({
+      "any.required": "missing required {#label} field",
+      "string.pattern.base": "Invalid {#label} format.",
+    }),
   favorite: Joi.boolean(),
 });
 
 export const contactUpdateSchema = Joi.object({
-  name: Joi.string().pattern(nameRegExp),
-  email: Joi.string().email().pattern(emailRegExp),
-  phone: Joi.string().pattern(phoneRegExp),
+  name: Joi.string().pattern(validationRegexp.nameRegExp).messages({
+    "string.pattern.base": "Invalid {#label} format.",
+  }),
+  email: Joi.string().pattern(validationRegexp.emailRegExp).messages({
+    "string.pattern.base": "Invalid {#label} format.",
+  }),
+  phone: Joi.string().pattern(validationRegexp.phoneRegExp).messages({
+    "string.pattern.base": "Invalid {#label} format.",
+  }),
   favorite: Joi.boolean(),
 });
 
