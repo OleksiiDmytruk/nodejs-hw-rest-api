@@ -7,28 +7,29 @@ import { authControler } from "../../controlers/index.js";
 const authRouter = express.Router();
 
 authRouter.post(
-  "/users/register",
+  "/register",
   isEmptyBody,
   validateBody(userAuthSchema),
   authControler.register
 );
 
 authRouter.post(
-  "/users/login",
+  "/login",
   isEmptyBody,
   validateBody(userAuthSchema),
   authControler.login
 );
 
-authRouter.post("/users/logout", authenticate, authControler.logout);
+authRouter.post("/logout", authenticate, authControler.logout);
 
-authRouter.get("/users/current", authenticate, authControler.getCurrent);
+authRouter.get("/current", authenticate, authControler.getCurrent);
 
 authRouter.patch(
-  "/users/subscription",
+  "/subscription",
   authenticate,
   isEmptyBody,
   validateBody(updateSubscriptionSchema),
   authControler.updateSubscription
 );
+
 export default authRouter;
