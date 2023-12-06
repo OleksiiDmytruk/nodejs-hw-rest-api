@@ -1,6 +1,10 @@
 import express from "express";
 
-import { isEmptyBody, isValidId } from "../../middlewares/index.js";
+import {
+  authenticate,
+  isEmptyBody,
+  isValidId,
+} from "../../middlewares/index.js";
 
 import { contactsControler } from "../../controlers/index.js";
 import { validateBody } from "../../decorators/index.js";
@@ -11,6 +15,8 @@ import {
 } from "../../models/Contact.js";
 
 const contactsRouter = express.Router();
+
+contactsRouter.use(authenticate);
 
 contactsRouter.get("/", contactsControler.getAllContacts);
 

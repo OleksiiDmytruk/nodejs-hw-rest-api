@@ -4,9 +4,21 @@ import { HttpError } from "../helpers/index.js";
 
 import tryCatchWrapper from "../decorators/tryCatchWrapper.js";
 
-const getAllContacts = tryCatchWrapper(async (_, res) => {
-  const result = await Contact.find({}, "-createdAt -updatedAt");
-  res.json(result);
+const getAllContacts = tryCatchWrapper(async (req, res) => {
+  const { _id: owner } = req.user;
+  const { page = 1, limit = 10, ...filterParams } = req.query;
+  const skip = (page - 1) * limit;
+  const filter = { owner, ...filterParams };
+  const result = await Movie.find(filter, "-createdAt -updatedAt", {
+    skip,
+    limit,
+  });
+  const total = await Movie.countDocuments(filter);
+
+  res.json({
+    result,
+    total,
+  });
 });
 
 const getById = tryCatchWrapper(async (req, res) => {
@@ -17,8 +29,6 @@ const getById = tryCatchWrapper(async (req, res) => {
   }
   res.json(result);
 });
-
-// hshcbhsbebsubfbsuvdb
 
 const addContact = tryCatchWrapper(async (req, res) => {
   const result = await Contact.create(req.body);
