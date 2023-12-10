@@ -4,14 +4,14 @@ import gravatar from "gravatar";
 import Jimp from "jimp";
 import path from "path";
 import fs from "fs/promises";
+import { nanoid } from "nanoid";
 import "dotenv/config";
 
 import User from "../models/User.js";
-import { HttpError } from "../helpers/index.js";
+import { HttpError, sendEmail } from "../helpers/index.js";
 import { tryCatchWrapper } from "../decorators/index.js";
-import { error } from "console";
 
-const { JWT_SECRET } = process.env;
+const { JWT_SECRET, BASE_URL } = process.env;
 const avatarsPath = path.resolve("public", "avatars");
 
 const register = tryCatchWrapper(async (req, res) => {
@@ -21,13 +21,20 @@ const register = tryCatchWrapper(async (req, res) => {
     throw HttpError(409, "Email in use");
   }
   const avatarURL = gravatar.url(email, { s: "250" });
-  console.log(avatarURL);
+  const verificationToken = nanoid();
   const hashPassword = await bcrypt.hash(password, 10);
   const newUser = await User.create({
     ...req.body,
     password: hashPassword,
     avatarURL,
+    verificationToken,
   });
+  const verifyEmail = {
+    to: email,
+    subject: "Verify email",
+    html: `<a target="_blank" href="${BASE_URL}/users/verify/${verificationToken}">Click verify email</a>`,
+  };
+  await sendEmail(verifyEmail);
   res.status(201).json({
     user: {
       email: newUser.email,
@@ -36,11 +43,49 @@ const register = tryCatchWrapper(async (req, res) => {
   });
 });
 
+const verify = tryCatchWrapper(async (req, res) => {
+  const { verificationToken } = req.params;
+  const user = await User.findOne({ verificationToken });
+  if (!user) {
+    throw HttpError(404, "User not found");
+  }
+  await User.updateOne(
+    { verificationToken },
+    { verify: true, verificationToken: null }
+  );
+  res.json({
+    message: "Verification successful",
+  });
+});
+
+const resendVerifyEmail = tryCatchWrapper(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw HttpError(404, "User not found");
+  }
+  if (user.verify) {
+    throw HttpError(400, "Verification has already been passed");
+  }
+  const verifyEmail = {
+    to: email,
+    subject: "Verify email",
+    html: `<a target="_blank" href="${BASE_URL}/users/verify/${user.verificationToken}">Click verify email</a>`,
+  };
+  await sendEmail(verifyEmail);
+  res.json({
+    message: "Verification email sent",
+  });
+});
+
 const login = tryCatchWrapper(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (!user) {
     throw HttpError(401, "Email or password is wrong");
+  }
+  if (!user.verify) {
+    throw HttpError(401, "Email not verify");
   }
   const passwordCompare = await bcrypt.compare(password, user.password);
   if (!passwordCompare) {
@@ -111,6 +156,8 @@ const addAvatar = tryCatchWrapper(async (req, res) => {
 
 export default {
   register,
+  verify,
+  resendVerifyEmail,
   login,
   logout,
   getCurrent,
