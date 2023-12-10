@@ -1,12 +1,18 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import gravatar from "gravatar";
+import Jimp from "jimp";
+import path from "path";
+import fs from "fs/promises";
 import "dotenv/config";
 
 import User from "../models/User.js";
 import { HttpError } from "../helpers/index.js";
 import { tryCatchWrapper } from "../decorators/index.js";
+import { error } from "console";
 
 const { JWT_SECRET } = process.env;
+const avatarsPath = path.resolve("public", "avatars");
 
 const register = tryCatchWrapper(async (req, res) => {
   const { email, password } = req.body;
@@ -14,8 +20,14 @@ const register = tryCatchWrapper(async (req, res) => {
   if (user) {
     throw HttpError(409, "Email in use");
   }
+  const avatarURL = gravatar.url(email, { s: "250" });
+  console.log(avatarURL);
   const hashPassword = await bcrypt.hash(password, 10);
-  const newUser = await User.create({ ...req.body, password: hashPassword });
+  const newUser = await User.create({
+    ...req.body,
+    password: hashPassword,
+    avatarURL,
+  });
   res.status(201).json({
     user: {
       email: newUser.email,
@@ -75,10 +87,33 @@ const updateSubscription = tryCatchWrapper(async (req, res) => {
   });
 });
 
+const addAvatar = tryCatchWrapper(async (req, res) => {
+  const { _id, email } = req.user;
+  const { path: oldPath, filename } = req.file;
+  const owner = _id.toString();
+  Jimp.read(oldPath)
+    .then((img) => {
+      return img.resize(250, 250);
+    })
+    .catch((error) => {
+      throw HttpError(404, error.message);
+    });
+  const avatarName = `${owner}_${filename}`;
+  const newPath = path.join(avatarsPath, avatarName);
+  await fs.rename(oldPath, newPath);
+  const avatarURL = path.join("avatars", avatarName);
+  const result = await User.findOneAndUpdate({ email }, { avatarURL });
+
+  res.json({
+    avatarURL: result.avatarURL,
+  });
+});
+
 export default {
   register,
   login,
   logout,
   getCurrent,
   updateSubscription,
+  addAvatar,
 };
