@@ -136,16 +136,17 @@ const addAvatar = tryCatchWrapper(async (req, res) => {
   const { _id, email } = req.user;
   const { path: oldPath, filename } = req.file;
   const owner = _id.toString();
+  const avatarName = `${owner}_${filename}`;
+  const newPath = path.join(avatarsPath, avatarName);
   Jimp.read(oldPath)
     .then((img) => {
-      return img.resize(250, 250);
+      return img.resize(250, 250).quality(75).write(newPath);
     })
     .catch((error) => {
       throw HttpError(404, error.message);
     });
-  const avatarName = `${owner}_${filename}`;
-  const newPath = path.join(avatarsPath, avatarName);
-  await fs.rename(oldPath, newPath);
+
+  await fs.unlink(oldPath);
   const avatarURL = path.join("avatars", avatarName);
   const result = await User.findOneAndUpdate({ email }, { avatarURL });
 
